@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ClaimStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  ASSESSED
+  APPROVED
+  REJECTED
+}
+
+enum AssessmentStatus {
+  JUSTIFIED
+  NOT_JUSTIFIED
+  INCONCLUSIVE
+}
+
+model Claim {
+  id String @id @default(uuid()) @db.Uuid
+
+  productName   String
+  claimText     String @db.Text
+  claimCategory String
+
+  formulation   Json?
+  targetMetric  String?
+  targetValue   Float?
+  durationWeeks Int?
+
+  status ClaimStatus @default(DRAFT)
+
+  assessments      Assessment[]
+  clinicalEvidence ClinicalEvidence[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([claimCategory])
+}
+
+model Assessment {
+  id String @id @default(uuid()) @db.Uuid
+
+  claimId String @db.Uuid
+
+  claim Claim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  evidence Json
+
+  studySampleSize Int?
+  actualResult    Float?
+  pValue          Float?
+
+  justified       Boolean
+  confidenceScore Float
+  status          AssessmentStatus
+
+  reasoning      String  @db.Text
+  limitations    Json?
+  recommendation String? @db.Text
+
+  modelName     String
+  promptVersion String
+
+  createdAt DateTime @default(now())
+
+  @@index([claimId])
+  @@index([createdAt])
+}
+
+model ClinicalEvidence {
+  id String @id @default(uuid()) @db.Uuid
+
+  claimId String @db.Uuid
+  claim   Claim  @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  studyTitle    String
+  studyDesign   String
+  population    String @db.Text
+  sampleSize    Int
+  durationWeeks Int
+
+  methodology String @db.Text
+  endpoint    String
+
+  baselineMean        Float?
+  followUpMean        Float?
+  controlBaselineMean Float?
+  controlFollowUpMean Float?
+
+  pValue                  Float?
+  confidenceIntervalLower Float?
+  confidenceIntervalUpper Float?
+
+  limitations Json?
+  isSynthetic Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([claimId])
+  @@index([createdAt])
+}
